@@ -1,0 +1,4 @@
+*.txt
+*.db
+.env
+node_modules
