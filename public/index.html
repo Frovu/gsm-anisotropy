@@ -2,9 +2,18 @@
 <html lang="en" dir="ltr">
 	<head>
 		<meta charset="utf-8">
-		<title></title>
+		<title>gsm-anisotropy</title>
+		<link type="text/css" rel="stylesheet" href="css/dygraph.css">
+		<script src="scripts/three.js"></script>
+		<script src="scripts/dygraph.js"></script>
+		<script src="scripts/OrbitControls.js"></script>
+		<script src="scripts/plot.js"></script>
 	</head>
 	<body>
-
+		<canvas width=900 height=800 id="plot"></canvas>
+		<input id="from" type="date">
+		<input id="to" type="date">
+		<button onclick="sendData()">Send</button>
+		<div id="div_g" style="width:900px; height:300px;"></div>
 	</body>
 </html>
