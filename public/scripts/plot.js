@@ -26,12 +26,15 @@ function drawArrows (data)
         console.error("Too many points to draw!");
         return;
     }
-
+    /*
     if (arrowSet.length > 0) {
         for (let i = 0; i < arrowSet.length; i ++) {
             scene.remove(arrowSet[i][1]);
         }    
-    }
+    }*/
+
+    let points = []; 
+    let arrows = new Float32Array(data.length*9);
 
     for (let i = 0; i < data.length; i++) {
         const time = data[i][0]
@@ -44,7 +47,8 @@ function drawArrows (data)
 
         let vector = new THREE.Vector3(x, y, z);
         vector.addScalar(arrowOffset);
-        //set.push(vector);
+
+        points.push(vector);
 
         dataA0.push([time, A0]);
 
@@ -52,26 +56,46 @@ function drawArrows (data)
             let nextVector = new THREE.Vector3(data[i+1][2], data[i+1][3], data[i+1][4]);
             nextVector.addScalar(arrowOffset);
 
-
             const dir = nextVector.clone().sub(vector);
             const length = dir.length();
             dir.normalize();
-            
-            const arrowHelper = new THREE.ArrowHelper( dir, vector, length, `rgb(${color}, ${255-color}, ${255-color})` );
-            arrowSet.push([data[i], arrowHelper]);
-            scene.add( arrowHelper );
+
+            arrows[i*9] = nextVector.x - 0.02
+            arrows[i*9+1] = nextVector.y - 0.02
+            arrows[i*9+2] =  nextVector.z + 0.02;
+
+            arrows[i*9+3] = nextVector.x + 0.02
+            arrows[i*9+4] = nextVector.y - 0.02
+            arrows[i*9+5] =  nextVector.z + 0.02;
+
+            arrows[i*9+6] = nextVector.x + 0.02
+            arrows[i*9+7] = nextVector.y + 0.02
+            arrows[i*9+8] =  nextVector.z + 0.02;
+
+            //arrows[i*9+1] = new THREE.Vector3(nextVector.x + 0.02, nextVector.y - 0.02, nextVector.z + 0.02);
+            //arrows[i*9+2] = new THREE.Vector3(nextVector.x + 0.02, nextVector.y + 0.02, nextVector.z + 0.02);
         }
     }
 
+    var material = [new THREE.LineBasicMaterial( { color: "blue" } ), new THREE.LineBasicMaterial( { color: "red" } )];
+    let linesGeometry = new THREE.BufferGeometry().setFromPoints(points);
+    linesGeometry.clearGroups();
+    linesGeometry.addGroup( 0, 40, 0 );
+    linesGeometry.addGroup( 41, points.length, 1 );
+    scene.add(new THREE.Line(linesGeometry, material));
 
-    //let geometry = new THREE.BufferGeometry().setFromPoints(set);
+    var mat = [new THREE.MeshBasicMaterial( { color: "blue" } ), new THREE.MeshBasicMaterial( { color: "red" } )];
+    let arrowsGeometry = new THREE.BufferGeometry();
+    arrowsGeometry.setAttribute( 'position', new THREE.BufferAttribute( arrows, 3 ) );
+
+    arrowsGeometry.clearGroups();
+    arrowsGeometry.addGroup( 0, 20*9, 0 );
+    arrowsGeometry.addGroup( 20*9, arrows.length, 1 );
+    scene.add(new THREE.Mesh( arrowsGeometry, mat ));
+
     //let pointMaterial = new THREE.PointsMaterial({ color : color, size : 1, sizeAttenuation : false});
-    //let lineMaterial = new THREE.LineBasicMaterial( { color: color } );
     //let plot = new THREE.Points( geometry , pointMaterial );
-    //let line = new THREE.Line(geometry, lineMaterial);
-
     //scene.add(plot);
-    //scene.add(line);
 }
 
 function plotA0 () {
