@@ -1,10 +1,10 @@
 let canvas, scene, camera, renderer, axes;
-//let set = [];
-let A0graph;
+let lines;
+let graph;
 let data = [];
 let dataA0 = [];
-let arrowSet = [];
-const arrowOffset = 0.0;
+
+const linesOffset = 0;
 
 function drawArrowsRegion (minDate, maxDate) {
     let regionData = [];
@@ -19,87 +19,104 @@ function drawArrowsRegion (minDate, maxDate) {
     drawArrows(regionData);
 }
 
-// very unoptimized; use a set
 function drawArrows (data)
 {   
+    let textPos = toScreenCoords(new THREE.Vector3(0, 10, 0));
+    console.log(textPos);
+    renderText (textPos.x, textPos.y);
+
     if (data.length > 10000) {
         console.error("Too many points to draw!");
         return;
     }
-    /*
-    if (arrowSet.length > 0) {
-        for (let i = 0; i < arrowSet.length; i ++) {
-            scene.remove(arrowSet[i][1]);
-        }    
-    }*/
+
+    if (lines != undefined) {
+        scene.remove(lines);
+    }
 
     let points = []; 
     let arrows = new Float32Array(data.length*9);
 
+    let materials = [];
+
     for (let i = 0; i < data.length; i++) {
-        const time = data[i][0]
-        const A0 = data[i][1];
-        const x = data[i][2];
-        const y = data[i][3];
-        const z = data[i][4];
+        const colorNum = Math.floor(255*(1.0/dataA0[i][1]));
 
-        const color = Math.floor(-A0*10);
+        const color = "rgb("+colorNum+", "+colorNum+","+colorNum+")";
 
-        let vector = new THREE.Vector3(x, y, z);
-        vector.addScalar(arrowOffset);
+        materials.push( new THREE.LineBasicMaterial( { color: color } ) );
+        
+
+        let vector = new THREE.Vector3(linesOffset+data[i][2], data[i][3], linesOffset+data[i][4]);
 
         points.push(vector);
 
-        dataA0.push([time, A0]);
-
         if (i < data.length-1) {
-            let nextVector = new THREE.Vector3(data[i+1][2], data[i+1][3], data[i+1][4]);
-            nextVector.addScalar(arrowOffset);
+            let nextVector = new THREE.Vector3(linesOffset+data[i+1][2], data[i+1][3], linesOffset+data[i+1][4]);
 
             const dir = nextVector.clone().sub(vector);
             const length = dir.length();
             dir.normalize();
 
-            arrows[i*9] = nextVector.x - 0.02
-            arrows[i*9+1] = nextVector.y - 0.02
-            arrows[i*9+2] =  nextVector.z + 0.02;
+            const right = dir.cross(new THREE.Vector3(0, 1, 0)).normalize();
+            arrows[i*9] = nextVector.x - 0.02;
+            arrows[i*9+1] = nextVector.y;
+            arrows[i*9+2] = nextVector.z - 0.02;
 
-            arrows[i*9+3] = nextVector.x + 0.02
-            arrows[i*9+4] = nextVector.y - 0.02
+            arrows[i*9+3] = nextVector.x
+            arrows[i*9+4] = nextVector.y
             arrows[i*9+5] =  nextVector.z + 0.02;
 
             arrows[i*9+6] = nextVector.x + 0.02
-            arrows[i*9+7] = nextVector.y + 0.02
-            arrows[i*9+8] =  nextVector.z + 0.02;
-
-            //arrows[i*9+1] = new THREE.Vector3(nextVector.x + 0.02, nextVector.y - 0.02, nextVector.z + 0.02);
-            //arrows[i*9+2] = new THREE.Vector3(nextVector.x + 0.02, nextVector.y + 0.02, nextVector.z + 0.02);
+            arrows[i*9+7] = nextVector.y
+            arrows[i*9+8] = nextVector.z - 0.02;
         }
     }
 
-    var material = [new THREE.LineBasicMaterial( { color: "blue" } ), new THREE.LineBasicMaterial( { color: "red" } )];
     let linesGeometry = new THREE.BufferGeometry().setFromPoints(points);
     linesGeometry.clearGroups();
-    linesGeometry.addGroup( 0, 40, 0 );
-    linesGeometry.addGroup( 41, points.length, 1 );
-    scene.add(new THREE.Line(linesGeometry, material));
+    for (let i = 0; i < data.length; i++) {
+        linesGeometry.addGroup( i, 2, i );  
+    }
+    lines = new THREE.Line(linesGeometry, materials);
+    scene.add(lines);
 
-    var mat = [new THREE.MeshBasicMaterial( { color: "blue" } ), new THREE.MeshBasicMaterial( { color: "red" } )];
+    /*
+    var mat = new THREE.MeshBasicMaterial( { color: "blue" } );
+    mat.side = THREE.DoubleSide;
     let arrowsGeometry = new THREE.BufferGeometry();
     arrowsGeometry.setAttribute( 'position', new THREE.BufferAttribute( arrows, 3 ) );
 
     arrowsGeometry.clearGroups();
     arrowsGeometry.addGroup( 0, 20*9, 0 );
     arrowsGeometry.addGroup( 20*9, arrows.length, 1 );
-    scene.add(new THREE.Mesh( arrowsGeometry, mat ));
+    scene.add(new THREE.Mesh( arrowsGeometry, mat ));*/
 
     //let pointMaterial = new THREE.PointsMaterial({ color : color, size : 1, sizeAttenuation : false});
     //let plot = new THREE.Points( geometry , pointMaterial );
     //scene.add(plot);
 }
 
+function initA0 () {
+    let A0max = 0;
+
+    for (let i = 0; i < data.length; i++) {
+        const A0 = data[i][1];
+        if (Math.abs(A0) > A0max) {
+            A0max = Math.abs(A0);
+        };
+    }
+
+    for (let i = 0; i < data.length; i++) {
+        const A0 = data[i][1];
+        const diff = Math.abs(A0+A0max);  // abs probably isn't neccesary
+        const time = data[i][0]
+        dataA0.push([time, diff]);
+    }
+}
+
 function plotA0 () {
-    A0graph = new Dygraph(document.getElementById("div_g"), dataA0,
+    graph = new Dygraph(document.getElementById("div_g"), dataA0,
     {
         legend: 'always',
         showRoller: true,
@@ -115,26 +132,25 @@ function plotA0 () {
     });
 }
 
-function renderText (top, left) {
-    let text2 = document.createElement('div');
-    text2.style.position = 'absolute';
-    //text2.style.zIndex = 1;    // if you still don't see the label, try uncommenting this
-    text2.style.width = 100;
-    text2.style.height = 100;
-    text2.style.backgroundColor = "red";
-    text2.innerHTML = "hi there!";
-    text2.style.top = top + 'px';
-    text2.style.left = left + 'px';
-    document.body.appendChild(text2);
+function renderText (left, top) {
+    left = Math.floor(left);
+    top = Math.floor(top);
+    let text = document.createElement('div');
+    text.style.position = 'relative';
+    text.style.zIndex = 1;    // if you still don't see the label, try uncommenting this
+    text.style.width = 100;
+    text.style.height = 100;
+    text.style.backgroundColor = "red";
+    text.innerHTML = "hi there!";
+    text.style.top = top + 'px';
+    text.style.left = left + 'px';
+    canvas.appendChild(text);
 }
 
 function toScreenCoords (pos) {
-    let screen = pos.clone();
-    screen.project(camera);
-    screen.x = ( pos.x + 1) * canvas.width / 2;
-    screen.y = - ( pos.y - 1) * canvas.height / 2;
-    screen.z = 0;
-    return screen;
+    camera.updateMatrixWorld();
+    pos.project(camera);
+    return pos;
 }
 
 window.onload = function() {
@@ -146,20 +162,16 @@ window.onload = function() {
     renderer = new THREE.WebGLRenderer( { canvas: canvas } );
     renderer.setSize(canvas.width, canvas.height);
 
-    camera = new THREE.PerspectiveCamera(45 , window.innerWidth/window.innerHeight , 1 , 1000);
+    camera = new THREE.PerspectiveCamera(45 , window.innerWidth/window.innerHeight , 0.05 , 100);
     camera.up = new THREE.Vector3(0, 1, 0);
-    camera.position.set(7, 2, 7);
+    camera.position.set(3, 2, 3);
     camera.controls = new THREE.OrbitControls(camera, renderer.domElement);
-    camera.updateMatrixWorld();
 
     const axes = new THREE.AxesHelper(10);
     scene.add(axes);
 
     const grid = new THREE.GridHelper(8, 8);
     scene.add(grid);
-
-    let textPosition = toScreenCoords(new THREE.Vector3(0, 10, 0));
-    renderText (textPosition.x, textPosition.y);
 
     render();
 };
@@ -173,12 +185,13 @@ function render () {
 function sendData () {
     //let from = document.getElementById("from").valueAsDate;
     //let to = document.getElementById("to").valueAsDate;
-    let from = new Date("25 august 2002");
-    let to = new Date("30 august 2002");
+    let from = new Date("5 august 2003");
+    let to = new Date("7 august 2003");
     getData(from, to).then(function (response) {
         data = response.rows;
-        drawArrows(data);
+        initA0();
         plotA0();
+        drawArrows(data);
     })
 }
 
