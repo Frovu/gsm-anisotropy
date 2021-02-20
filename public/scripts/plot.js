@@ -4,12 +4,15 @@ let A0graph;
 let data = [];
 let dataA0 = [];
 let arrowSet = [];
+const arrowOffset = 0.0;
 
 function drawArrowsRegion (minDate, maxDate) {
     let regionData = [];
+    console.log("highlighting from ", minDate, " to ", maxDate)
 
     for (let i = 0; i < data.length; i ++) {
         const date = data[i][0];
+        
         if (date > minDate && date < maxDate) regionData.push(data[i]);
     }
 
@@ -40,12 +43,15 @@ function drawArrows (data)
         const color = Math.floor(-A0*10);
 
         let vector = new THREE.Vector3(x, y, z);
+        vector.addScalar(arrowOffset);
         //set.push(vector);
 
         dataA0.push([time, A0]);
 
         if (i < data.length-1) {
             let nextVector = new THREE.Vector3(data[i+1][2], data[i+1][3], data[i+1][4]);
+            nextVector.addScalar(arrowOffset);
+
 
             const dir = nextVector.clone().sub(vector);
             const length = dir.length();
@@ -68,11 +74,6 @@ function drawArrows (data)
     //scene.add(line);
 }
 
-function zoomCallback (minDate, maxDate, yRanges) {
-    console.log("highlighting from ", minDate, " to ", maxDate)
-    drawArrowsRegion(minDate, maxDate);
-}
-
 function plotA0 () {
     A0graph = new Dygraph(document.getElementById("div_g"), dataA0,
     {
@@ -86,7 +87,7 @@ function plotA0 () {
                 axis: 'y1'
             },
         },
-        zoomCallback: zoomCallback
+        zoomCallback: (minDate, maxDate) => drawArrowsRegion(minDate, maxDate)
     });
 }
 
@@ -117,19 +118,22 @@ window.onload = function() {
 
     scene = new THREE.Scene;
     scene.background = new THREE.Color(0x000000);
-    camera = new THREE.PerspectiveCamera(45 , window.innerWidth/window.innerHeight , 1 , 1000);
-
-    let axes = new THREE.AxesHelper(25);
-    scene.add(axes);
 
     renderer = new THREE.WebGLRenderer( { canvas: canvas } );
     renderer.setSize(canvas.width, canvas.height);
 
+    camera = new THREE.PerspectiveCamera(45 , window.innerWidth/window.innerHeight , 1 , 1000);
     camera.up = new THREE.Vector3(0, 1, 0);
     camera.position.set(7, 2, 7);
     camera.controls = new THREE.OrbitControls(camera, renderer.domElement);
-
     camera.updateMatrixWorld();
+
+    const axes = new THREE.AxesHelper(10);
+    scene.add(axes);
+
+    const grid = new THREE.GridHelper(8, 8);
+    scene.add(grid);
+
     let textPosition = toScreenCoords(new THREE.Vector3(0, 10, 0));
     renderText (textPosition.x, textPosition.y);
 
