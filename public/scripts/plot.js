@@ -49,11 +49,6 @@ function drawArrows (data)
 
         points.push(vector);
 
-        let label = createLabel();
-        label.setHTML(i);
-        label.position = vector;
-        labels.push(label);
-        document.body.appendChild(label.element);
         
         if (i < data.length-1) {
             let nextVector = new THREE.Vector3(linesOffset+data[i+1][2], data[i+1][3], linesOffset+data[i+1][4]);
@@ -103,10 +98,20 @@ function drawArrows (data)
 
 
 function initLabels () {
-    for (let i = 0; i < 10; i++) {
+    for (let x = 0; x < 10; x++) {
         let label = createLabel();
-        label.setHTML(i);
-        label.position = new THREE.Vector3(i, 0, 0);
+        label.setHTML(x);
+        label.position = new THREE.Vector3(x, 0, 0);
+        label.setColor('red');
+        labels.push(label);
+        document.body.appendChild(label.element);
+    }
+
+    for (let z = 0; z < 10; z++) {
+        let label = createLabel();
+        label.setHTML(z);
+        label.position = new THREE.Vector3(0, 0, z);
+        label.setColor('rgb(97, 135, 255)');
         labels.push(label);
         document.body.appendChild(label.element);
     }
@@ -127,6 +132,9 @@ function createLabel () {
         element: div,
         parent: false,
         position: new THREE.Vector3(0,0,0),
+        setColor: function (color) {
+            div.style.color = color;
+        },
         setHTML: function(html) {
             this.element.innerHTML = html;
         },
@@ -143,15 +151,10 @@ function createLabel () {
             this.element.style.top = coords2d.y + 'px';
         },
         get2DCoords: function(position) {
-            
-            //let vector = position.clone().project( camera );    // maybe we shouldn't clone in update 
-            //let rect = renderer.domElement.getBoundingClientRect();
-            //console.log(rect.top, rect.right, rect.bottom, rect.left);
-            //vector.x = ( vector.x + 1) *  renderer.domElement.width / 2; 
-            //vector.y = - ( vector.y - 1) * renderer.domElement.height / 2; 
-            //vector.z = 0;
             let vector = position.clone().project(camera);
-            vector.x = (vector.x + 1)/2 * canvas.width;
+            div.hidden = (vector.x < -1 || vector.y < -1) || (vector.x > 1 || vector.y > 1);
+
+            vector.x = (vector.x + 1)/2 * canvas.width + renderer.domElement.offsetLeft;
             vector.y = -(vector.y - 1)/2 * canvas.height;
             return vector;
         }
@@ -213,6 +216,13 @@ window.onload = function() {
     camera.controls = new THREE.OrbitControls(camera, renderer.domElement);
 
     const axes = new THREE.AxesHelper(10);
+    const axesColors = axes.geometry.attributes.color;
+    axesColors.setXYZ( 0, 1, 0, 0 ); // index, R, G, B
+    axesColors.setXYZ( 1, 1, 0, 0 ); // red
+    axesColors.setXYZ( 2, 0, 1, 0 );
+    axesColors.setXYZ( 3, 0, 1, 0 ); // green
+    axesColors.setXYZ( 4, 0.674, 0.745, 0.964 );
+    axesColors.setXYZ( 5, 0.674, 0.745, 0.964 ); // blue
     scene.add(axes);
 
     const grid = new THREE.GridHelper(8, 8);
