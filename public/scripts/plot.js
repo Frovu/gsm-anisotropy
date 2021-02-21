@@ -4,16 +4,18 @@ let graph;
 let data = [];
 let dataA0 = [];
 
+
 const linesOffset = 0;
 
-function drawArrowsRegion (minDate, maxDate) {
+function drawArrowsRegion (minDate, maxDate, yRanges) {
     let regionData = [];
-    console.log("highlighting from ", minDate, " to ", maxDate)
+    const minY = yRanges[0][0]; // have no clue why there is two arrays
+    const maxY = yRanges[0][1];
 
     for (let i = 0; i < data.length; i ++) {
         const date = data[i][0];
-        
-        if (date > minDate && date < maxDate) regionData.push(data[i]);
+        const A0 = dataA0[i][1];
+        if (date > minDate && date < maxDate && A0 >= minY && A0 <= maxY) regionData.push(data[i]);
     }
 
     drawArrows(regionData);
@@ -22,7 +24,6 @@ function drawArrowsRegion (minDate, maxDate) {
 function drawArrows (data)
 {   
     let textPos = toScreenCoords(new THREE.Vector3(0, 10, 0));
-    console.log(textPos);
     renderText (textPos.x, textPos.y);
 
     if (data.length > 10000) {
@@ -98,6 +99,10 @@ function drawArrows (data)
 }
 
 function initA0 () {
+    if (dataA0.length > 0) {
+        dataA0.length = 0;
+    }
+
     let A0max = 0;
 
     for (let i = 0; i < data.length; i++) {
@@ -128,7 +133,7 @@ function plotA0 () {
                 axis: 'y1'
             },
         },
-        zoomCallback: (minDate, maxDate) => drawArrowsRegion(minDate, maxDate)
+        zoomCallback: (minDate, maxDate, yRanges) => drawArrowsRegion(minDate, maxDate, yRanges)
     });
 }
 
@@ -173,6 +178,8 @@ window.onload = function() {
     const grid = new THREE.GridHelper(8, 8);
     scene.add(grid);
 
+    sendData();
+
     render();
 };
 
@@ -183,10 +190,9 @@ function render () {
 };
 
 function sendData () {
-    //let from = document.getElementById("from").valueAsDate;
-    //let to = document.getElementById("to").valueAsDate;
-    let from = new Date("5 august 2003");
-    let to = new Date("7 august 2003");
+    let from = document.getElementById("from").valueAsDate;
+    let to = document.getElementById("to").valueAsDate;
+
     getData(from, to).then(function (response) {
         data = response.rows;
         initA0();
@@ -195,7 +201,6 @@ function sendData () {
     })
 }
 
-sendData();
 
 async function getData (from, to) {
     let fromUnix = Math.floor(from.getTime() / 1000);
