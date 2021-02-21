@@ -3,13 +3,13 @@ let lines;
 let graph;
 let data = [];
 let dataA0 = [];
-
+let labels = [];
 
 const linesOffset = 0;
 
 function drawArrowsRegion (minDate, maxDate, yRanges) {
     let regionData = [];
-    const minY = yRanges[0][0]; // have no clue why there is two arrays
+    const minY = yRanges[0][0];
     const maxY = yRanges[0][1];
 
     for (let i = 0; i < data.length; i ++) {
@@ -23,9 +23,6 @@ function drawArrowsRegion (minDate, maxDate, yRanges) {
 
 function drawArrows (data)
 {   
-    let textPos = toScreenCoords(new THREE.Vector3(0, 10, 0));
-    renderText (textPos.x, textPos.y);
-
     if (data.length > 10000) {
         console.error("Too many points to draw!");
         return;
@@ -52,6 +49,12 @@ function drawArrows (data)
 
         points.push(vector);
 
+        let label = createLabel();
+        label.setHTML(i);
+        label.position = vector;
+        labels.push(label);
+        document.body.appendChild(label.element);
+        
         if (i < data.length-1) {
             let nextVector = new THREE.Vector3(linesOffset+data[i+1][2], data[i+1][3], linesOffset+data[i+1][4]);
 
@@ -98,6 +101,63 @@ function drawArrows (data)
     //scene.add(plot);
 }
 
+
+function initLabels () {
+    for (let i = 0; i < 10; i++) {
+        let label = createLabel();
+        label.setHTML(i);
+        label.position = new THREE.Vector3(i, 0, 0);
+        labels.push(label);
+        document.body.appendChild(label.element);
+    }
+}
+
+function createLabel () {
+    let div = document.createElement('div');
+    div.className = 'text-label';
+    div.style.position = 'fixed';
+    div.style.zIndex = "1";
+    //div.style.width = 100;
+    //div.style.height = 100;
+    div.innerHTML = "hi there";
+    div.style.top = -1000;
+    div.style.left = -1000;
+
+    return {
+        element: div,
+        parent: false,
+        position: new THREE.Vector3(0,0,0),
+        setHTML: function(html) {
+            this.element.innerHTML = html;
+        },
+        setParent: function(threejsobj) {
+            this.parent = threejsobj;
+        },
+        updatePosition: function() {
+            if(parent) {
+                //this.position.copy(this.parent.position);
+            }
+
+            let coords2d = this.get2DCoords(this.position);
+            this.element.style.left = coords2d.x + 'px';
+            this.element.style.top = coords2d.y + 'px';
+        },
+        get2DCoords: function(position) {
+            
+            //let vector = position.clone().project( camera );    // maybe we shouldn't clone in update 
+            //let rect = renderer.domElement.getBoundingClientRect();
+            //console.log(rect.top, rect.right, rect.bottom, rect.left);
+            //vector.x = ( vector.x + 1) *  renderer.domElement.width / 2; 
+            //vector.y = - ( vector.y - 1) * renderer.domElement.height / 2; 
+            //vector.z = 0;
+            let vector = position.clone().project(camera);
+            vector.x = (vector.x + 1)/2 * canvas.width;
+            vector.y = -(vector.y - 1)/2 * canvas.height;
+            return vector;
+        }
+    }
+}
+
 function initA0 () {
     if (dataA0.length > 0) {
         dataA0.length = 0;
@@ -137,26 +197,6 @@ function plotA0 () {
     });
 }
 
-function renderText (left, top) {
-    left = Math.floor(left);
-    top = Math.floor(top);
-    let text = document.createElement('div');
-    text.style.position = 'relative';
-    text.style.zIndex = 1;    // if you still don't see the label, try uncommenting this
-    text.style.width = 100;
-    text.style.height = 100;
-    text.style.backgroundColor = "red";
-    text.innerHTML = "hi there!";
-    text.style.top = top + 'px';
-    text.style.left = left + 'px';
-    canvas.appendChild(text);
-}
-
-function toScreenCoords (pos) {
-    camera.updateMatrixWorld();
-    pos.project(camera);
-    return pos;
-}
 
 window.onload = function() {
     canvas = document.getElementById("plot");
@@ -178,12 +218,18 @@ window.onload = function() {
     const grid = new THREE.GridHelper(8, 8);
     scene.add(grid);
 
+    initLabels ();
+
     sendData();
 
     render();
 };
 
 function render () {
+    for(let i = 0; i< labels.length; i++) {
+        labels[i].updatePosition();
+    }
+
     camera.controls.update();
     renderer.render(scene, camera);
     requestAnimationFrame(render);
@@ -217,3 +263,9 @@ async function getData (from, to) {
     console.error("Server didn't respond or some error occured");
     return null;
 }
+
+window.addEventListener('resize', function() {
+    camera.aspect = canvas.width / canvas.height;
+    camera.updateProjectionMatrix();
+    renderer.setSize(canvas.width, canvas.height);
+}, false);
