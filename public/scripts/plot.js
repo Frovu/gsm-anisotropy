@@ -13,7 +13,7 @@ function drawArrowsRegion (minDate, maxDate, yRanges) {
     const maxY = yRanges[0][1];
 
     for (let i = 0; i < data.length; i ++) {
-        const date = data[i][0];
+        const date = data[i][0] * 1000;
         const A0 = dataA0[i][1];
         if (date > minDate && date < maxDate && A0 >= minY && A0 <= maxY) regionData.push(data[i]);
     }
@@ -58,17 +58,18 @@ function drawArrows (data)
             dir.normalize();
 
             const right = dir.cross(new THREE.Vector3(0, 1, 0)).normalize();
-            arrows[i*9] = nextVector.x - 0.02;
+
+            arrows[i*9] = nextVector.x - 0.02 * dir.x;
             arrows[i*9+1] = nextVector.y;
-            arrows[i*9+2] = nextVector.z - 0.02;
+            arrows[i*9+2] = nextVector.z - 0.02 * dir.z;
 
-            arrows[i*9+3] = nextVector.x
+            arrows[i*9+3] = nextVector.x + 0.01 * dir.x;
             arrows[i*9+4] = nextVector.y
-            arrows[i*9+5] =  nextVector.z + 0.02;
+            arrows[i*9+5] = nextVector.z + 0.02 * dir.z;
 
-            arrows[i*9+6] = nextVector.x + 0.02
+            arrows[i*9+6] = nextVector.x + 0.02 * dir.x
             arrows[i*9+7] = nextVector.y
-            arrows[i*9+8] = nextVector.z - 0.02;
+            arrows[i*9+8] = nextVector.z - 0.02 * dir.z;
         }
     }
 
@@ -80,8 +81,8 @@ function drawArrows (data)
     lines = new THREE.Line(linesGeometry, materials);
     scene.add(lines);
 
-    /*
-    var mat = new THREE.MeshBasicMaterial( { color: "blue" } );
+
+    var mat = new THREE.MeshBasicMaterial( { color: "yellow" } );
     mat.side = THREE.DoubleSide;
     let arrowsGeometry = new THREE.BufferGeometry();
     arrowsGeometry.setAttribute( 'position', new THREE.BufferAttribute( arrows, 3 ) );
@@ -89,7 +90,7 @@ function drawArrows (data)
     arrowsGeometry.clearGroups();
     arrowsGeometry.addGroup( 0, 20*9, 0 );
     arrowsGeometry.addGroup( 20*9, arrows.length, 1 );
-    scene.add(new THREE.Mesh( arrowsGeometry, mat ));*/
+    //scene.add(new THREE.Mesh( arrowsGeometry, mat ));
 
     //let pointMaterial = new THREE.PointsMaterial({ color : color, size : 1, sizeAttenuation : false});
     //let plot = new THREE.Points( geometry , pointMaterial );
@@ -98,23 +99,36 @@ function drawArrows (data)
 
 
 function initLabels () {
-    for (let x = 0; x < 10; x++) {
-        let label = createLabel();
-        label.setHTML(x);
-        label.position = new THREE.Vector3(x, 0, 0);
-        label.setColor('red');
-        labels.push(label);
-        document.body.appendChild(label.element);
+    for (let i = 0; i < 10; i++) {
+        let xLabel = createLabel();
+        let zLabel = createLabel();
+        xLabel.setHTML(i);
+        zLabel.setHTML(i);
+        xLabel.position = new THREE.Vector3(i, 0, 0);
+        zLabel.position = new THREE.Vector3(0, 0, i);
+        xLabel.setColor('red');
+        zLabel.setColor('rgb(97, 135, 255)');
+        labels.push(xLabel);
+        labels.push(zLabel);
+        document.body.appendChild(xLabel.element);
+        document.body.appendChild(zLabel.element);
     }
 
-    for (let z = 0; z < 10; z++) {
-        let label = createLabel();
-        label.setHTML(z);
-        label.position = new THREE.Vector3(0, 0, z);
-        label.setColor('rgb(97, 135, 255)');
-        labels.push(label);
-        document.body.appendChild(label.element);
-    }
+    let xAxisLabel = createLabel();
+    xAxisLabel.setHTML('<b>+X</b>');
+    xAxisLabel.position = new THREE.Vector3(10, 0, 0);
+    xAxisLabel.setColor('red');
+    xAxisLabel.isAxisLabel = true;
+    labels.push(xAxisLabel);
+    document.body.appendChild(xAxisLabel.element);
+
+    let zAxisLabel = createLabel();
+    zAxisLabel.setHTML('<b>+Z</b>');
+    zAxisLabel.position = new THREE.Vector3(0, 0, 10);
+    zAxisLabel.setColor('rgb(97, 135, 255)');
+    zAxisLabel.isAxisLabel = true;
+    labels.push(zAxisLabel);
+    document.body.appendChild(zAxisLabel.element);
 }
 
 function createLabel () {
@@ -122,8 +136,6 @@ function createLabel () {
     div.className = 'text-label';
     div.style.position = 'fixed';
     div.style.zIndex = "1";
-    //div.style.width = 100;
-    //div.style.height = 100;
     div.innerHTML = "hi there";
     div.style.top = -1000;
     div.style.left = -1000;
@@ -131,6 +143,7 @@ function createLabel () {
     return {
         element: div,
         parent: false,
+        isAxisLabel: false,
         position: new THREE.Vector3(0,0,0),
         setColor: function (color) {
             div.style.color = color;
@@ -152,7 +165,20 @@ function createLabel () {
         },
         get2DCoords: function(position) {
             let vector = position.clone().project(camera);
-            div.hidden = (vector.x < -1 || vector.y < -1) || (vector.x > 1 || vector.y > 1);
+            let isOutOfCanvas = (vector.x < -1 || vector.y < -1) || (vector.x > 1 || vector.y > 1);
+
+                /*
+            if (this.isAxisLabel && isOutOfCanvas) {
+                
+                if (vector.x < -1) vector.x = -1;
+                if (vector.y < -1) vector.y = -1;
+                if (vector.x > 1) vector.x = 1;
+                if (vector.y > 1) vector.y = 1;
+                console.log(isOutOfCanvas)
+                isOutOfCanvas = false;
+            }*/
+
+            div.hidden = isOutOfCanvas;
 
             vector.x = (vector.x + 1)/2 * canvas.width + renderer.domElement.offsetLeft;
             vector.y = -(vector.y - 1)/2 * canvas.height;
@@ -167,7 +193,6 @@ function initA0 () {
     }
 
     let A0max = 0;
-
     for (let i = 0; i < data.length; i++) {
         const A0 = data[i][1];
         if (Math.abs(A0) > A0max) {
@@ -178,8 +203,9 @@ function initA0 () {
     for (let i = 0; i < data.length; i++) {
         const A0 = data[i][1];
         const diff = Math.abs(A0+A0max);  // abs probably isn't neccesary
-        const time = data[i][0]
-        dataA0.push([time, diff]);
+        const unixTime = data[i][0]
+        const date = new Date(unixTime * 1000);
+        dataA0.push([date, diff]);  // time - это отсчёт от чего?
     }
 }
 
