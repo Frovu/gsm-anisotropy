@@ -15,3 +15,9 @@
 body {
 	text-align: center;
 }
+
+input {
+	margin-right:15px;
+	margin-left:6px;
+	margin-bottom:10px;
+}
