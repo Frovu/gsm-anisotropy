@@ -1,11 +1,14 @@
 let canvas, scene, camera, renderer, axes;
 let lines;
+let arrows = [];
 let graph;
+let labels = [];
 let data = [];
 let dataA0 = [];
-let labels = [];
+let rangesA0 = [];  // [min, max]
 
 const linesOffset = 0;
+const axisLength = 4;
 
 function drawArrowsRegion (minDate, maxDate, yRanges) {
     let regionData = [];
@@ -21,9 +24,14 @@ function drawArrowsRegion (minDate, maxDate, yRanges) {
     drawArrows(regionData);
 }
 
+function normalize (val, min, max) 
+{ 
+    return (val - min) / (max - min); 
+}
+
 function drawArrows (data)
 {   
-    if (data.length > 10000) {
+    if (data.length > 500) {
         console.error("Too many points to draw!");
         return;
     }
@@ -32,24 +40,31 @@ function drawArrows (data)
         scene.remove(lines);
     }
 
-    let points = []; 
-    let arrows = new Float32Array(data.length*9);
+    for (let i = 0; i < arrows.length; i++) {
+        scene.remove(arrows[i]);
+    }
+
+    let points = [];
 
     let materials = [];
 
+    let axis = new THREE.Vector3();
+
+    let coneGeometry = new THREE.CylinderGeometry( 0, 0.5, 1, 5, 1 );
+    coneGeometry.translate( 0, - 0.5, 0 );
+
     for (let i = 0; i < data.length; i++) {
-        const colorNum = Math.floor(255*(1.0/dataA0[i][1]));
+        let A0norm = Math.abs(normalize(Math.abs(dataA0[i][1]-rangesA0[0]), rangesA0[0], rangesA0[1])); //bydlocode
+        const colorNum = Math.floor(255*A0norm);
 
         const color = "rgb("+colorNum+", "+colorNum+","+colorNum+")";
 
         materials.push( new THREE.LineBasicMaterial( { color: color } ) );
-        
 
         let vector = new THREE.Vector3(linesOffset+data[i][2], data[i][3], linesOffset+data[i][4]);
 
         points.push(vector);
 
-        
         if (i < data.length-1) {
             let nextVector = new THREE.Vector3(linesOffset+data[i+1][2], data[i+1][3], linesOffset+data[i+1][4]);
 
@@ -57,21 +72,38 @@ function drawArrows (data)
             const length = dir.length();
             dir.normalize();
 
-            const right = dir.cross(new THREE.Vector3(0, 1, 0)).normalize();
+            let arrow = new THREE.Object3D();
+            arrow.position.copy( vector );
+            
 
-            arrows[i*9] = nextVector.x - 0.02 * dir.x;
-            arrows[i*9+1] = nextVector.y;
-            arrows[i*9+2] = nextVector.z - 0.02 * dir.z;
 
-            arrows[i*9+3] = nextVector.x + 0.01 * dir.x;
-            arrows[i*9+4] = nextVector.y
-            arrows[i*9+5] = nextVector.z + 0.02 * dir.z;
+            arrow.cone = new THREE.Mesh( coneGeometry, new THREE.MeshBasicMaterial( { color: color, toneMapped: false } ) );
+            arrow.cone.matrixAutoUpdate = false;
+            arrow.add( arrow.cone );
+            
+            // set arrow direction
+            if ( dir.y > 0.99999 ) {
+                arrow.quaternion.set( 0, 0, 0, 1 );
+            } else if ( dir.y < - 0.99999 ) {
+                arrow.quaternion.set( 1, 0, 0, 0 );
+            } else {
+                axis.set( dir.z, 0, - dir.x ).normalize();
+                const radians = Math.acos( dir.y );
+                arrow.quaternion.setFromAxisAngle( axis, radians );
+            }
 
-            arrows[i*9+6] = nextVector.x + 0.02 * dir.x
-            arrows[i*9+7] = nextVector.y
-            arrows[i*9+8] = nextVector.z - 0.02 * dir.z;
+            // set arrow length
+            const headLength = length * 0.1;
+            const headWidth = headLength * 0.3;
+            arrow.cone.scale.set( headWidth, headLength, headWidth );
+            arrow.cone.position.y = length;
+            arrow.cone.updateMatrix();
+            
+            arrows.push(arrow);
+            scene.add(arrow);
         }
     }
+
 
     let linesGeometry = new THREE.BufferGeometry().setFromPoints(points);
     linesGeometry.clearGroups();
@@ -80,17 +112,24 @@ function drawArrows (data)
     }
     lines = new THREE.Line(linesGeometry, materials);
     scene.add(lines);
+    /*
+    let arrowsGeometry = new THREE.CylinderBufferGeometry().setFromPoints(arrowPoints);
+    arrowsGeometry.clearGroups();
+    for (let i = 0; i < data.length; i++) {
+        arrowsGeometry.addGroup( i, 2, i );  
+    }
+    arrows = new THREE.Mesh(arrowsGeometry, materials);
+    scene.add(arrows);*/
 
-
+    /*
     var mat = new THREE.MeshBasicMaterial( { color: "yellow" } );
-    mat.side = THREE.DoubleSide;
     let arrowsGeometry = new THREE.BufferGeometry();
     arrowsGeometry.setAttribute( 'position', new THREE.BufferAttribute( arrows, 3 ) );
 
     arrowsGeometry.clearGroups();
     arrowsGeometry.addGroup( 0, 20*9, 0 );
     arrowsGeometry.addGroup( 20*9, arrows.length, 1 );
-    //scene.add(new THREE.Mesh( arrowsGeometry, mat ));
+    scene.add(new THREE.Mesh( arrowsGeometry, mat ));*/
 
     //let pointMaterial = new THREE.PointsMaterial({ color : color, size : 1, sizeAttenuation : false});
     //let plot = new THREE.Points( geometry , pointMaterial );
@@ -99,7 +138,8 @@ function drawArrows (data)
 
 
 function initLabels () {
-    for (let i = 0; i < 10; i++) {
+
+    for (let i = 0; i < axisLength; i++) {
         let xLabel = createLabel();
         let zLabel = createLabel();
         xLabel.setHTML(i);
@@ -116,7 +156,7 @@ function initLabels () {
 
     let xAxisLabel = createLabel();
     xAxisLabel.setHTML('<b>+X</b>');
-    xAxisLabel.position = new THREE.Vector3(10, 0, 0);
+    xAxisLabel.position = new THREE.Vector3(axisLength, 0, 0);
     xAxisLabel.setColor('red');
     xAxisLabel.isAxisLabel = true;
     labels.push(xAxisLabel);
@@ -124,7 +164,7 @@ function initLabels () {
 
     let zAxisLabel = createLabel();
     zAxisLabel.setHTML('<b>+Z</b>');
-    zAxisLabel.position = new THREE.Vector3(0, 0, 10);
+    zAxisLabel.position = new THREE.Vector3(0, 0, axisLength);
     zAxisLabel.setColor('rgb(97, 135, 255)');
     zAxisLabel.isAxisLabel = true;
     labels.push(zAxisLabel);
@@ -192,17 +232,19 @@ function initA0 () {
         dataA0.length = 0;
     }
 
-    let A0max = 0;
+    let maxA0 = 0;
+    let minA0 = Infinity;
     for (let i = 0; i < data.length; i++) {
-        const A0 = data[i][1];
-        if (Math.abs(A0) > A0max) {
-            A0max = Math.abs(A0);
-        };
+        const A0 = Math.abs(data[i][1]);
+        if (A0 > maxA0) maxA0 = A0;
+        if (A0 < minA0) minA0 = A0;
     }
+
+    rangesA0 = [minA0, maxA0];
 
     for (let i = 0; i < data.length; i++) {
         const A0 = data[i][1];
-        const diff = Math.abs(A0+A0max);  // abs probably isn't neccesary
+        const diff = Math.abs(A0+rangesA0[0]);  // abs probably isn't neccesary
         const unixTime = data[i][0]
         const date = new Date(unixTime * 1000);
         dataA0.push([date, diff]);  // time - это отсчёт от чего?
@@ -241,7 +283,7 @@ window.onload = function() {
     camera.position.set(3, 2, 3);
     camera.controls = new THREE.OrbitControls(camera, renderer.domElement);
 
-    const axes = new THREE.AxesHelper(10);
+    const axes = new THREE.AxesHelper(axisLength);
     const axesColors = axes.geometry.attributes.color;
     axesColors.setXYZ( 0, 1, 0, 0 ); // index, R, G, B
     axesColors.setXYZ( 1, 1, 0, 0 ); // red
@@ -251,7 +293,7 @@ window.onload = function() {
     axesColors.setXYZ( 5, 0.674, 0.745, 0.964 ); // blue
     scene.add(axes);
 
-    const grid = new THREE.GridHelper(8, 8);
+    const grid = new THREE.GridHelper(4, 4);
     scene.add(grid);
 
     initLabels ();
