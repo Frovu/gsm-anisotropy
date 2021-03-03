@@ -1,3 +1,4 @@
+let clock = new THREE.Clock();
 let canvas, scene, camera, renderer, axes;
 let lines;
 let arrows = [];
@@ -53,54 +54,75 @@ function drawArrows (data)
     let coneGeometry = new THREE.CylinderGeometry( 0, 0.5, 1, 5, 1 );
     coneGeometry.translate( 0, - 0.5, 0 );
 
-    for (let i = 0; i < data.length; i++) {
-        let A0norm = Math.abs(normalize(Math.abs(dataA0[i][1]-rangesA0[0]), rangesA0[0], rangesA0[1])); //bydlocode
-        const colorNum = Math.floor(255*A0norm);
+    let colorA = new THREE.Color('blue');
+    let colorB = new THREE.Color('orange');
+/*
+    const startMap = new THREE.TextureLoader().load( 'start.png' );
+	const startMaterial = new THREE.SpriteMaterial( { map: startMap } );
+	const startSprite = new THREE.Sprite( startMaterial );
+	startSprite.copy(new THREE.Vector3(linesOffset+data[0][2], data[0][3], linesOffset+data[0][4]));
+	scene.add( startSprite );
 
-        const color = "rgb("+colorNum+", "+colorNum+","+colorNum+")";
+    const endMap = new THREE.TextureLoader().load( 'start.png' );
+	const endMaterial = new THREE.SpriteMaterial( { map: startMap } );
+	const endSprite = new THREE.Sprite( startMaterial );
+	endSprite.position.copy(new THREE.Vector3(linesOffset+data[data.length-1][2], data[data.length-1][3], linesOffset+data[data.length-1][4]));
+	scene.add( endSprite );*/
+
+
+    for (let i = 0; i < data.length; i++) {
+        //let A0norm = Math.abs(normalize(Math.abs(dataA0[i][1]-rangesA0[0]), rangesA0[0], rangesA0[1])); //bydlocode
+        //const colorNum = Math.floor(255*A0norm);
+
+        //const color = "rgb("+colorNum+", "+colorNum+","+colorNum+")";
+        const A0 = dataA0[i][1];
+        const color = new THREE.Color().lerpColors(colorA, colorB, i/data.length);
 
         materials.push( new THREE.LineBasicMaterial( { color: color } ) );
 
-        let vector = new THREE.Vector3(linesOffset+data[i][2], data[i][3], linesOffset+data[i][4]);
+        let startVector = new THREE.Vector3(linesOffset+-data[i][4], data[i][2], linesOffset+data[i][3]);
 
-        points.push(vector);
+        points.push(startVector);
 
         if (i < data.length-1) {
-            let nextVector = new THREE.Vector3(linesOffset+data[i+1][2], data[i+1][3], linesOffset+data[i+1][4]);
+            let endVector = new THREE.Vector3(linesOffset+-data[i+1][4], data[i+1][2], linesOffset+data[i+1][3]);
 
-            const dir = nextVector.clone().sub(vector);
+            const dir = endVector.clone().sub(startVector);
+            const diff = dir.clone();
             const length = dir.length();
             dir.normalize();
 
-            let arrow = new THREE.Object3D();
-            arrow.position.copy( vector );
-            
-
-
-            arrow.cone = new THREE.Mesh( coneGeometry, new THREE.MeshBasicMaterial( { color: color, toneMapped: false } ) );
-            arrow.cone.matrixAutoUpdate = false;
-            arrow.add( arrow.cone );
-            
-            // set arrow direction
-            if ( dir.y > 0.99999 ) {
-                arrow.quaternion.set( 0, 0, 0, 1 );
-            } else if ( dir.y < - 0.99999 ) {
-                arrow.quaternion.set( 1, 0, 0, 0 );
-            } else {
-                axis.set( dir.z, 0, - dir.x ).normalize();
-                const radians = Math.acos( dir.y );
-                arrow.quaternion.setFromAxisAngle( axis, radians );
-            }
-
-            // set arrow length
-            const headLength = length * 0.1;
-            const headWidth = headLength * 0.3;
-            arrow.cone.scale.set( headWidth, headLength, headWidth );
-            arrow.cone.position.y = length;
-            arrow.cone.updateMatrix();
-            
-            arrows.push(arrow);
-            scene.add(arrow);
+            //for (let i = 0; i < 5; i++) {
+            	//let position = startVector.clone().add(diff.clone().multiplyScalar(1.0/i));
+            	let arrow = new THREE.Object3D();
+            	arrow.position.copy( startVector );
+	
+            	arrow.cone = new THREE.Mesh( coneGeometry, new THREE.MeshBasicMaterial( { color: color, toneMapped: false } ) );
+            	arrow.cone.matrixAutoUpdate = false;
+            	arrow.add( arrow.cone );
+            	
+            	// set arrow direction
+            	if ( dir.y > 0.99999 ) {
+            	    arrow.quaternion.set( 0, 0, 0, 1 );
+            	} else if ( dir.y < - 0.99999 ) {
+            	    arrow.quaternion.set( 1, 0, 0, 0 );
+            	} else {
+            	    axis.set( dir.z, 0, - dir.x ).normalize();
+            	    const radians = Math.acos( dir.y );
+            	    arrow.quaternion.setFromAxisAngle( axis, radians );
+            	}
+	
+            	// set arrow length
+            	const headLength = THREE.MathUtils.clamp(length * 0.1, 0.06, 0.1);
+            	const headWidth = headLength * 0.3;
+            	arrow.cone.scale.set( headWidth, headLength, headWidth );
+            	arrow.cone.position.y = length;
+            	arrow.cone.updateMatrix();
+            	
+	
+            	arrows.push({arrow: arrow, start: startVector.clone().sub(diff), end: endVector, diff: diff});
+            	scene.add(arrow);
+            //}
         }
     }
 
@@ -136,7 +158,6 @@ function drawArrows (data)
     //scene.add(plot);
 }
 
-
 function initLabels () {
 
     for (let i = 0; i < axisLength; i++) {
@@ -155,7 +176,7 @@ function initLabels () {
     }
 
     let xAxisLabel = createLabel();
-    xAxisLabel.setHTML('<b>+X</b>');
+    xAxisLabel.setHTML('<b>+Y</b>');
     xAxisLabel.position = new THREE.Vector3(axisLength, 0, 0);
     xAxisLabel.setColor('red');
     xAxisLabel.isAxisLabel = true;
@@ -163,7 +184,7 @@ function initLabels () {
     document.body.appendChild(xAxisLabel.element);
 
     let zAxisLabel = createLabel();
-    zAxisLabel.setHTML('<b>+Z</b>');
+    zAxisLabel.setHTML('<b>+X</b>');
     zAxisLabel.position = new THREE.Vector3(0, 0, axisLength);
     zAxisLabel.setColor('rgb(97, 135, 255)');
     zAxisLabel.isAxisLabel = true;
@@ -247,7 +268,7 @@ function initA0 () {
         const diff = Math.abs(A0+rangesA0[0]);  // abs probably isn't neccesary
         const unixTime = data[i][0]
         const date = new Date(unixTime * 1000);
-        dataA0.push([date, diff]);  // time - это отсчёт от чего?
+        dataA0.push([date, A0]);  // time - это отсчёт от чего?
     }
 }
 
@@ -293,7 +314,7 @@ window.onload = function() {
     axesColors.setXYZ( 5, 0.674, 0.745, 0.964 ); // blue
     scene.add(axes);
 
-    const grid = new THREE.GridHelper(4, 4);
+    const grid = new THREE.GridHelper(8, 8);
     scene.add(grid);
 
     initLabels ();
@@ -303,6 +324,17 @@ window.onload = function() {
     render();
 };
 
+function moveVectorFields (time) {
+	if (arrows[0] == undefined) return;
+	let t = (time/15.0) % 0.5;
+	
+	for (let i = 0; i < arrows.length; i++) {
+        let pos = new THREE.Vector3().lerpVectors(arrows[i].start, arrows[i].end, t);
+        arrows[i].arrow.position.copy(pos);
+        arrows[i].arrow.updateMatrix();
+	}
+}
+
 function render () {
     for(let i = 0; i< labels.length; i++) {
         labels[i].updatePosition();
@@ -310,6 +342,8 @@ function render () {
 
     camera.controls.update();
     renderer.render(scene, camera);
+    moveVectorFields (clock.getElapsedTime ());
+    
     requestAnimationFrame(render);
 };
 
