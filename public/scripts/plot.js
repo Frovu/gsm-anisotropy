@@ -60,7 +60,7 @@ function drawArrows (data)
 
     let axis = new THREE.Vector3();
 
-    let coneGeometry = new THREE.CylinderGeometry( 0, 0.5, 1, 5, 1 );
+    let coneGeometry = new THREE.CylinderGeometry( 0, 0.5, 1, 3, 1 );
     coneGeometry.translate( 0, - 0.5, 0 );
 
     let colorA = new THREE.Color('#0BEAFA');
@@ -128,7 +128,7 @@ function drawArrows (data)
 	
             	// set arrow length
             	const headLength = THREE.MathUtils.clamp(length * 0.1, 0.09, 0.2);
-            	const headWidth = headLength * 0.4;
+            	const headWidth = headLength * 0.5;
             	arrow.cone.scale.set( headWidth, headLength, headWidth );
             	arrow.cone.position.y = length;
             	arrow.cone.updateMatrix();
