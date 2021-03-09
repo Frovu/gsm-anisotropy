@@ -7,9 +7,12 @@ let labels = [];
 let data = [];
 let dataA0 = [];
 let rangesA0 = [];  // [min, max]
+let centroid;
+let startPointA, startPointB;
 
 const linesOffset = 0;
 const axisLength = 4;
+
 
 function drawArrowsRegion (minDate, maxDate, yRanges) {
     let regionData = [];
@@ -39,10 +42,16 @@ function drawArrows (data)
 
     if (lines != undefined) {
         scene.remove(lines);
-    }
-
-    for (let i = 0; i < arrows.length; i++) {
-        scene.remove(arrows[i]);
+        for (let i = 0; i < arrows.length; i++) {
+            scene.remove(arrows[i].arrow);
+        }
+        arrows = [];
+        if (startPointA != null) {
+            scene.remove(startPointA);
+            scene.remove(startPointB);
+            startPointA = null;
+            startPointB = null;
+        }
     }
 
     let points = [];
@@ -54,21 +63,26 @@ function drawArrows (data)
     let coneGeometry = new THREE.CylinderGeometry( 0, 0.5, 1, 5, 1 );
     coneGeometry.translate( 0, - 0.5, 0 );
 
-    let colorA = new THREE.Color('blue');
+    let colorA = new THREE.Color('#0BEAFA');
     let colorB = new THREE.Color('orange');
-/*
+
     const startMap = new THREE.TextureLoader().load( 'start.png' );
-	const startMaterial = new THREE.SpriteMaterial( { map: startMap } );
+	const startMaterial = new THREE.SpriteMaterial( { map: startMap, color: colorA } );
 	const startSprite = new THREE.Sprite( startMaterial );
-	startSprite.copy(new THREE.Vector3(linesOffset+data[0][2], data[0][3], linesOffset+data[0][4]));
+    startSprite.scale.set(0.2, 0.2, 0.2);
+	startSprite.position.copy(new THREE.Vector3(linesOffset+-data[0][4], data[0][2], linesOffset+-data[0][3]));
+    startPointA = startSprite;
 	scene.add( startSprite );
 
     const endMap = new THREE.TextureLoader().load( 'start.png' );
-	const endMaterial = new THREE.SpriteMaterial( { map: startMap } );
-	const endSprite = new THREE.Sprite( startMaterial );
-	endSprite.position.copy(new THREE.Vector3(linesOffset+data[data.length-1][2], data[data.length-1][3], linesOffset+data[data.length-1][4]));
-	scene.add( endSprite );*/
+	const endMaterial = new THREE.SpriteMaterial( { map: endMap, color: colorB } );
+	const endSprite = new THREE.Sprite( endMaterial );
+    endSprite.scale.set(0.2, 0.2, 0.2);
+	endSprite.position.copy(new THREE.Vector3(linesOffset+-data[data.length-1][4], data[data.length-1][2], linesOffset+-data[data.length-1][3]));
+    startPointB = endSprite;
+	scene.add( endSprite );
 
+    centroid = new THREE.Vector3(0, 0, 0);
 
     for (let i = 0; i < data.length; i++) {
         //let A0norm = Math.abs(normalize(Math.abs(dataA0[i][1]-rangesA0[0]), rangesA0[0], rangesA0[1])); //bydlocode
@@ -80,12 +94,12 @@ function drawArrows (data)
 
         materials.push( new THREE.LineBasicMaterial( { color: color } ) );
 
-        let startVector = new THREE.Vector3(linesOffset+-data[i][4], data[i][2], linesOffset+data[i][3]);
-
+        let startVector = new THREE.Vector3(linesOffset+-data[i][4], data[i][2], linesOffset+-data[i][3]);
         points.push(startVector);
+        centroid.add(startVector);
 
         if (i < data.length-1) {
-            let endVector = new THREE.Vector3(linesOffset+-data[i+1][4], data[i+1][2], linesOffset+data[i+1][3]);
+            let endVector = new THREE.Vector3(linesOffset+-data[i+1][4], data[i+1][2], linesOffset+-data[i+1][3]);
 
             const dir = endVector.clone().sub(startVector);
             const diff = dir.clone();
@@ -113,19 +127,20 @@ function drawArrows (data)
             	}
 	
             	// set arrow length
-            	const headLength = THREE.MathUtils.clamp(length * 0.1, 0.06, 0.1);
-            	const headWidth = headLength * 0.3;
+            	const headLength = THREE.MathUtils.clamp(length * 0.1, 0.09, 0.2);
+            	const headWidth = headLength * 0.4;
             	arrow.cone.scale.set( headWidth, headLength, headWidth );
             	arrow.cone.position.y = length;
             	arrow.cone.updateMatrix();
             	
-	
-            	arrows.push({arrow: arrow, start: startVector.clone().sub(diff), end: endVector, diff: diff});
-            	scene.add(arrow);
+	            let arrowObj = {arrow: arrow, start: startVector.clone().sub(diff), end: endVector, diff: diff};
+            	arrows.push(arrowObj);
+            	scene.add(arrowObj.arrow);
             //}
         }
     }
 
+    centroid.divideScalar(data.length);
 
     let linesGeometry = new THREE.BufferGeometry().setFromPoints(points);
     linesGeometry.clearGroups();
@@ -152,10 +167,10 @@ function drawArrows (data)
     arrowsGeometry.addGroup( 0, 20*9, 0 );
     arrowsGeometry.addGroup( 20*9, arrows.length, 1 );
     scene.add(new THREE.Mesh( arrowsGeometry, mat ));*/
-
-    //let pointMaterial = new THREE.PointsMaterial({ color : color, size : 1, sizeAttenuation : false});
-    //let plot = new THREE.Points( geometry , pointMaterial );
-    //scene.add(plot);
+    /*
+    let pointMaterial = new THREE.PointsMaterial({ color : 'white', size : 1, sizeAttenuation : false});
+    let plot = new THREE.Points( points , pointMaterial );
+    scene.add(plot);*/
 }
 
 function initLabels () {
@@ -290,8 +305,20 @@ function plotA0 () {
 }
 
 
+function panToCentroid () {
+    if (centroid != null) {
+        camera.controls.target = centroid;
+        camera.controls.update();
+    }
+    console.log(centroid)
+}
+
 window.onload = function() {
     canvas = document.getElementById("plot");
+
+    canvas.addEventListener('dblclick', function(){ 
+        panToCentroid();
+    });
 
     scene = new THREE.Scene;
     scene.background = new THREE.Color(0x000000);
@@ -327,7 +354,7 @@ window.onload = function() {
 function moveVectorFields (time) {
 	if (arrows[0] == undefined) return;
 	let t = (time/15.0) % 0.5;
-	
+
 	for (let i = 0; i < arrows.length; i++) {
         let pos = new THREE.Vector3().lerpVectors(arrows[i].start, arrows[i].end, t);
         arrows[i].arrow.position.copy(pos);
